@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Journal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-purple-200 text-gray-900">
+    <div class="container mx-auto p-6 max-w-lg">
+        <h1 class="text-4xl font-bold text-center mb-6 text-blue-700">Mood Journal</h1>
+        
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-semibold mb-3">Add Mood Entry</h2>
+            <form id="moodForm" class="space-y-4">
+                <label for="mood" class="block font-medium">Mood:</label>
+                <select id="mood" class="w-full p-3 border rounded-lg bg-gray-50 shadow-sm">
+                    <option value="happy">😊 Happy</option>
+                    <option value="sad">😢 Sad</option>
+                    <option value="neutral">😐 Neutral</option>
+                </select>
+                <label for="note" class="block font-medium">Note:</label>
+                <textarea id="note" class="w-full p-3 border rounded-lg bg-gray-50 shadow-sm" placeholder="Why do you feel this way?"></textarea>
+                <button type="submit" class="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-lg hover:opacity-90 w-full shadow-md transition">Add Entry</button>
+            </form>
+        </div>
+        
+        <h2 class="text-2xl font-semibold mt-8">Mood Trend</h2>
+        <div class="bg-white p-4 rounded-lg shadow-lg mt-4">
+            <canvas id="moodChart"></canvas>
+        </div>
+        
+        <h2 class="text-2xl font-semibold mt-8">Past Entries</h2>
+        <ul id="entries-list" class="space-y-3 bg-white p-4 rounded-lg shadow-lg mt-4"></ul>
+    </div>
+    
+    <script>
+        document.getElementById('moodForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const mood = document.getElementById('mood').value;
+            const note = document.getElementById('note').value;
+            
+            console.log("Submitting mood entry:", { mood, note }); // Debugging log
+
+            fetch('/add-entry', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mood, note })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Response from server:", data);
+                alert(data.message);
+                loadEntries();
+                loadMoodTrend();
+            })
+            .catch(error => console.error("Error adding entry:", error));
+        });
+
+        function loadEntries() {
+            fetch('/entries')
+            .then(response => response.json())
+            .then(entries => {
+                console.log("Loaded entries:", entries); // Debugging log
+                const list = document.getElementById('entries-list');
+                list.innerHTML = '';
+                entries.forEach(entry => {
+                    const li = document.createElement('li');
+                    li.className = "p-3 border rounded-lg bg-gray-100 shadow-sm";
+                    li.innerHTML = `<strong>${entry.date}</strong> - <span class="font-semibold">${entry.mood.toUpperCase()}</span> - ${entry.note}`;
+                    list.appendChild(li);
+                });
+            })
+            .catch(error => console.error("Error loading entries:", error));
+        }
+
+        function loadMoodTrend() {
+            fetch('/mood-trend')
+            .then(response => response.json())
+            .then(data => {
+                console.log("Mood trend data:", data); // Debugging log
+                const ctx = document.getElementById('moodChart').getContext('2d');
+                const moodData = data.moods.map(m => m === 'happy' ? 1 : m === 'sad' ? -1 : 0);
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.dates,
+                        datasets: [{
+                            label: 'Mood Trend',
+                            data: moodData,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.3,
+                            fill: true,
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointBackgroundColor: 'rgba(75, 192, 192, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error("Error loading mood trend:", error));
+        }
+
+        window.onload = function() {
+            loadEntries();
+            loadMoodTrend();
+        };
+        fetch('/add-entry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mood, note })
+    })
+        .then(response => response.json())
+        .then(data => {
+        console.log("Server Response:", data);
+        alert(data.message);
+        loadEntries();
+        loadMoodTrend();
+    })
+       .catch(error => {
+       console.error("Fetch Error:", error);
+       alert("Failed to add entry. Check console for details.");
+    });
+
+    </script>
+</body>
+</html>
